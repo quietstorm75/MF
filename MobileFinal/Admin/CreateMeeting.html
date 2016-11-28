@@ -1,0 +1,446 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Create Meeting</title>
+    <meta charset="utf-8" />
+
+    <link href="../Content/themes/base/jquery-ui.min.css" rel="stylesheet" />
+    <link href="../Content/bootstrap-datetimepicker.min.css" rel="stylesheet" />
+    <!--<link href="../Content/Site.css" rel="stylesheet" />-->
+    <link href="../Content/bootstrap.css" rel="stylesheet" />
+
+    <script src="../Scripts/jquery-1.12.4.min.js"></script>
+
+    <script src="../Scripts/jquery.validate.min.js"></script>
+    <!--<script src="../Scripts/appValidation.js"></script>-->
+
+    <script src="../Scripts/moment.min.js"></script>
+    <script src="../Scripts/bootstrap.min.js"></script>
+    <script src="../Scripts/bootstrap-datetimepicker.min.js"></script>
+    <script src="../Scripts/jquery-ui-1.12.1.min.js"></script>
+    <script src="../Scripts/appHelper.js"></script>
+
+    <script type="text/javascript">
+        //attendee variables
+        var userLst = [];
+        var attendeelist = []; 
+        var tempAttendeelist = [];
+        var mtgattendeelist = []; //captures list of invited users email
+        //meeting variables          
+        var urlLst = [];
+        var tempUrlList = [];
+        
+        function filterUsers() {
+            $.ajax({
+                url: "ManageData.asmx/GetUsers",
+                type: "POST",
+                contentType: "application/json;charset=utf-8",
+                dataType: "json",
+                success: function (data) {
+                    var i = 0;
+                    $.each(JSON.parse(data.d), function (key, val) {
+                        //roleLst.push({ role: val.rolename })
+                        userLst[i] = val.useremail;
+                        i++;
+                    });
+
+                    $("#usertag").autocomplete({
+                        source: userLst, minLength: 3
+                    })
+                },
+                error: function (data) {
+                    alert("failed")
+                }
+            });
+        };
+
+        $(function () {
+
+
+            // filterUsers();
+            //remove items from list of email attendees;
+
+            $(document).on('click','.emaillist', function () {
+                removeItem($(this).closest("label")[0].innerText, userLst, tempAttendeelist);
+                $(this).closest("label").remove();
+
+                //attendeelist.pop($(this).find("label"));
+                //tempAttendeelist.pop($(this).text());
+                //$(this).closest("label").remove();
+            });
+
+          
+            //attendees event
+            $("#adduser").click(function (e) {
+                e.preventDefault();
+                if ($("#form_meeting").valid() && $("#usertag").val()=="") {
+                    return false;
+                }
+
+                if ($("#usertag").val().length > 0) {
+
+                    tempAttendeelist.push("<label class='emaillist form-control'>" + $("#usertag").val() + "<i id='hess' class='glyphicon glyphicon-remove-circle'></i></label>");
+                    userLst.push($("#usertag").val());
+
+                   // idx = userLst.indexOf($("#usertag").val());
+                   // userLst.splice(idx, 1);
+                   
+                    $("#usertag").val("");
+
+                    //remove from array list
+                }
+
+                //var lst = "";
+                //$.each(attendeelist, function (key, value) {
+                //    lst += value;
+                //});
+                if (tempAttendeelist.length > 0)
+                    $("#attendeelist").html(tempAttendeelist);
+
+            });
+
+      
+
+            //meeting url event\
+
+
+            $(document).on('click', '.urllist', function () {
+                removeItem($(this).text(), urlLst, tempUrlList);
+                $(this).closest("label").remove();
+
+                //urllist.pop($(this).find("label"));
+                //tempUrlList.pop($(this).text());
+                //$(this).closest("label").remove();
+            });
+
+
+            $("#addurl").click(function (e) {
+                e.preventDefault();
+                if (!$("#form_meeting").valid() && $("#urltag").val() == "") {
+                    return false;
+                }
+
+                if ($("#urltag").val().length > 0) {
+                    var urlbubble = "<div class='input-group input-group-sm'>" +
+                                    "<label class='urllist form-control'>" + $("#urltag").val() + "</label>" +
+                                    "</div>";
+  
+                    urlLst.push($("#urltag").val());
+                    tempUrlList.push(urlbubble);
+                  //  idx = urlLst.indexOf($("#urltag").val());
+                   // urlLst.splice(idx, 1);
+                    
+                    $("#urltag").val("");
+
+                    
+                }
+
+                //var lst = "";
+                //$.each(urllist, function (key, value) {
+                //    lst += value;
+                //});
+                if (tempUrlList.length > 0)
+                    $("#urllist").html(tempUrlList);
+
+            });
+
+
+            //date selection
+            $('#datetimepicker1').datetimepicker();
+            $('#datetimepicker2').datetimepicker({
+                useCurrent: false 
+            });
+
+            $("#datetimepicker1").on("dp.change", function (e) {
+                $('#datetimepicker2').data("DateTimePicker").minDate(e.date);
+            });
+            $("#datetimepicker2").on("dp.change", function (e) {
+                $('#datetimepicker1').data("DateTimePicker").maxDate(e.date);
+            });
+
+            //create meeting
+
+
+            $("#btnCreate").click(function (e) {
+               e.preventDefault();
+                if (!$("#form_meeting").valid()) {
+                    return false;
+                }
+                //form fields
+                var mtgtitle = $("#mtgTitle").val();
+                var mtgstart = $("#mtgStartDate").val();
+                var mtgend = $("#mtgEndDate").val();
+                //var mtgpublished = $("#mtgpublish").val() === "on" ? true : false;
+                var mtgdetails = $("#mtgdetails").val();
+
+                var mtgurl = urlLst.join(",");
+
+                var sfrequency = $("#sfreq option:selected").text();
+                var recur = $("#mtgreocurr").val() === "on" ? true : false;
+                var file1 = $("#fuDoc1").val();
+                var jsonitem = [];
+                var jsonattendeelist = [];
+
+                if (file1.length > 0) {
+                    var selectedfiles = file1.split(',');
+                    $.each(selectedfiles, function (key, val) {
+                            jsonitem.push({'docname': val });
+                    });
+                }
+
+
+                if (userLst.length > 0) {
+                    //var inviteduserId = "";
+                    $.each(userLst, function (key, val) {
+                        jsonattendeelist.push({ 'attendeesemail': val });
+                    });
+                }
+
+                var doctoadd = JSON.stringify(jsonitem);
+                var userstoadd = JSON.stringify(jsonattendeelist);
+                             
+
+                var meeting = {
+                    agendatitle: '' + mtgtitle + '', agendadetails: '' + mtgdetails + '', agendastart: '' + mtgstart + '', agendaexpire: '' + mtgend + '', ispublished: 'true',
+                    url: '' + mtgurl + '', recurrence: '' + recur + '', frequency: '' + sfrequency + '', userid: '22', attendees: JSON.parse(userstoadd),
+                    agendadocuments: JSON.parse(doctoadd)
+                };
+
+                jsondata = JSON.stringify({ 'meeting': meeting });
+
+                $.each(meeting.attendees, function (key,val) {
+                    mtgattendeelist.push(val.attendeesemail);
+
+                });
+
+                var meetingToSend = "Title:" + meeting.agendatitle + "\n Start:" + meeting.agendastart + "\n End:" + meeting.agendaexpire + "\n" +
+                                    "Details:" + meeting.agendadetails + "\n Frequency:" + meeting.frequency + "\n Invitees:" + mtgattendeelist.join(',') +
+                                    "Meeting URL:"+meeting.url;
+
+                $.ajax({
+                    url: '../ManageData.asmx/AddMeeting',
+                    type: 'POST',
+                    data: JSON.stringify({ 'meeting': meeting }),
+                    dataType: 'json',
+                    contentType: "application/json;charset=utf-8",
+                    success: function (response) {
+                        //send in attendees here via service call
+
+                        alert("Meeting has been added");
+                        window.location = "../meetings.html";
+                    },
+                    error: function (response) {
+                        alert("A system error prevent agenda details from being submitted. Please contact IT")
+                    }
+                });
+
+            });
+        });
+
+    </script>
+</head>
+<body>
+    <form name="form_meeting" id="form_meeting" method="get" action="">
+        <div class="container">
+            <div class="row">
+                <div class="loginborder">
+                    <div class="header-sect" style="text-align:center;background-color:#333399;padding-bottom:4px;">Executive Meeting Portal - Create Meeting</div>
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <div>
+                                    <input type="text" id="mtgTitle" name="mtgTitle" class="form-control" placeholder="Meeting Title" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-5 col-sm-12 col-xs-12 date">
+                                <div class="input-group" id="datetimepicker1">
+                                    <input type="datetime" id="mtgStartDate" name="mtgStartDate" class="form-control" placeholder="Meeting Start Date" />
+                                    <div class="input-group-addon">
+                                        <label class="glyphicon glyphicon-calendar datepicker1"></label>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="col-md-2">&nbsp;</div>
+                            <div class="col-md-5  col-sm-12 col-xs-12 date">
+                                <div class="input-group" id="datetimepicker2">
+                                    <input type="datetime" id="mtgEndDate" name="mtgEndDate" class="form-control" placeholder="Meeting End Date" />
+                                    <div class="input-group-addon">
+                                        <label class="glyphicon glyphicon-calendar datepicker1"></label>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <label class="control-label" style="color:#fff;">Associated Doc 1:</label><input type="file" class="form-control" id="fuDoc1" name="fuDoc1" multiple />
+                            </div>
+                            <!--<div class="col-md-2">&nbsp;</div>-->
+                            <!--<div class="col-md-5 col-sm-12 col-xs-12">
+                                <label class="control-label">Associated Doc 2:</label><input type="file" class="form-control" id="fuDoc2" name="fuDoc2" />
+                            </div>-->
+                        </div>
+                    </div>
+                    <!--<div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-5 col-sm-12 col-xs-12">
+                                <label class="control-label">Associated Doc 3:</label><input type="file" class="form-control" id="fuDoc3" name="fuDoc3" />
+                            </div>
+                            <div class="col-md-2">&nbsp;</div>
+                            <div class="col-md-5 col-sm-12 col-xs-12">
+                                <label class="control-label">Associated Doc 4:</label><input type="file" class="form-control" id="fuDoc4" name="fuDoc4" />
+                            </div>
+                        </div>
+                    </div>-->
+
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="form-group col-sm-12 col-xs-12">
+                            <label for="details" style="color:#fff;">Meeting Details:</label>
+                            <textarea placeholder="Enter Meeting Details" id="mtgdetails" class="form-control" rows="5" name="mtgdetails"></textarea>
+                        </div>
+                    </div>
+
+                    <!--<div class="row">
+                        <div class="form-group col-sm-12 col-xs-12">
+                            <label class="control-label" style="color:#fff;">Meeting URLs</label>
+                        </div>
+                    </div>-->
+                    <!--<div class="row">&nbsp;</div>-->
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-10 col-sm-10 col-xs-6">
+                                <input type="url" class="form-control" placeholder="Enter Webex URLs" id="urltag" />
+                            </div>
+                            <div class="col-md-2 col-sm-2 col-xs-6">
+                                <input style="height:34px;" type="button" name="addurl" id="addurl" class="btn btn-warning" value="Add Meeting Url" />
+                            </div>
+                            <!--<div class="col-md-2 col-sm-12">&nbsp;</div>
+                            <div class="col-md-5">
+                                <input type="url" class="form-control  col-md-6" placeholder="Meeting URL 2" id="link2" />
+                            </div>-->
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group col-md-10 col-sm-10 col-xs-6">
+                            <label class="control-label" style="color:#fff">Meeting URLS:</label>
+                            <div id="urllist"></div>
+                        </div>
+                    </div>
+                    <!--<div class="row">
+                        <div class="form-group col-sm-12 col-xs-12">
+                            <div class="col-md-5">
+                                <input type="url" class="form-control" placeholder="Meeting URL 3" id="link3" />
+                            </div>
+                            <div class="col-md-2 col-sm-12">&nbsp;</div>
+                            <div class="col-md-5">
+                                <input type="url" class="form-control  col-md-6" placeholder="Meeting URL 4" id="link4" />
+                            </div>
+                        </div>
+                    </div>-->
+                    <div class="row">&nbsp;</div>
+                    <!--<div class="row">
+                        <div class="form-group">
+                            <label class="control-label" style="color:#fff">Add Attendees</label>
+                        </div>
+                    </div>-->
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="col-md-10 col-sm-10 col-xs-6">
+                                <input type="email" id="usertag" name="usertag" class="form-control" placeholder="Enter user name or email" />
+                            </div>
+                            <div class="col-md-2 col-sm-2 col-xs-6">
+                                <input style="height:34px;" type="button" name="adduser" id="adduser" class="btn btn-warning" value="Add Attendee" />
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="form-group col-md-10 col-sm-10 col-xs-6">
+                            <label class="control-label" style="color:#fff">Meeting Attendees:</label>
+                            <!--<input class="form-control" type="text" id="attendeelist" name="attendeelist" />-->
+                            <div id="attendeelist"></div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <div style="background-color:#ffcc00;" class="col-md-12">
+                                <input type="checkbox" name="mtgreocurr" id="mtgreocurr" />
+                                <label class="activate-text" style="font-size:12px;color:#000;">Check here for Recurring Meeting</label>
+                            </div>
+                            <!--<div class="class="col-md-6"><select id="sfreq" name="sfreq" class="form-control">
+                                    <option>None</option>
+                                    <option>Weekly</option>
+                                    <option>Monthly</option>
+                                    <option>Annual</option>
+                                </select>
+                            </div>-->
+
+                        </div>
+                    </div>
+
+                    <div class="row graycolor">
+
+                        <div class="col-md-6">
+                            <label class="control-label" style="color:black;">Recurrence Frequency</label>
+                            <div>
+                                <select id="sfreq" name="sfreq" class="form-control">
+                                    <option>None</option>
+                                    <option>Weekly</option>
+                                    <option>Monthly</option>
+                                    <option>Annual</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        &nbsp;
+                    </div>
+                    <!--<div class="row">
+                        <div class="form-group">
+                            <div>
+                                <input type="checkbox" name="mtgpublish" id="mtgpublish" />
+                                <label class="activate-text">Publish</label>
+                            </div>
+                        </div>
+                    </div>-->
+
+
+                    <div class="row">
+                        <div class="form-group">
+                            <input type="submit" class="btn btn-primary" id="btnCreate" value="Create Meeting">
+                        </div>
+                    </div>
+
+
+
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <script>
+
+
+    </script>
+
+
+</body>
+</html>

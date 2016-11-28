@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>My Document</title>
+    <meta charset="utf-8" />
+    <link href="Content/Site.css" rel="stylesheet" />
+    <link href="Content/bootstrap.css" rel="stylesheet" />
+
+    <script src="Scripts/jquery-1.12.4.min.js"></script>
+    <!--<script src="Scripts/jquery-ui-1.12.1.min.js"></script>-->
+    <script src="Scripts/bootstrap.min.js"></script>
+    <script src="Scripts/appHelper.js"></script>
+    <!--<script src="Scripts/init.js"></script>-->
+    <script>
+
+        //not using this method
+        function GetDocName(strname) {
+            var docname = "";
+            var name = strname.docname;
+            var docuser = strname.userid;
+            var docid = strname.id;
+            var version =strname.version;
+            var category = strname.categoryid;
+
+            if (name !== undefined||name!=="") {
+                pos = name.lastIndexOf("\\");
+                length = name.length;
+                numberOfChar = length - pos;
+                docname = "<a class='docitem' data-ver='" + version + "' data-categ='" + category + "' data-docid='" +
+                           docid + "' data-docname='" + name + "' data-userid='" + docuser + "' href='#'>"
+                           + name.substring(pos + 1, length) + "</a>";
+            }
+            return docname;
+        };
+
+
+        function base64ToArrayBuffer(base64) {
+            var binaryString = window.atob(base64);
+            var binaryLen = binaryString.length;
+            var bytes = new Uint8Array(binaryLen);
+            for (var i = 0; i < binaryLen; i++) {
+                var ascii = binaryString.charCodeAt(i);
+                bytes[i] = ascii;
+            }
+            return bytes;
+        }
+
+
+        function saveByteArray(reportName, byte, mimetype, name) {
+            var blob = new Blob([byte], { type: mimetype });
+            var link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.download = name;
+            link.click();
+        };
+
+        //this function does not work
+        //function DisplayPDF(thisPDF) {
+
+        //    var content = "<object id='pdfObject' type='application/pdf' data='"+thisPDF+ "' width='100%' height='100%' />";
+        //    $("#pdfDisplay").attr("title", thisPDF + " Preview");
+        //    $("#pdfDisplay").load(content);
+        //    $("#pdfDisplay").dialog({ width: 800, height: 400, resizable: true, buttons: { 'Ok': function () { $(this).dialog('close'); } } });
+        //    return false;
+        //}
+
+
+        $(function () {
+            var documentId;
+            $("body").on("click", ".opendocument", function (e) {
+                documentId = $(this).attr("data-docid")
+                e.preventDefault();
+                var jsondata = JSON.stringify({ docid:documentId,ver:'1'});
+                //alert("test");
+                $.ajax({
+                    url: 'ManageData.asmx/GetServiceDocument',
+                    data: jsondata,
+                    type: "POST",
+                    contentType: "application/json;charset=utf-8",
+                    dataType: 'json',
+
+                    success: function (results) {
+                        var docdata = results.d;
+                        var contentdata = JSON.parse(docdata)
+                        //var pdfAsDataUri = "data:application/pdf;base64," + contentdata[0].content;
+                         var docArray = base64ToArrayBuffer(contentdata[0].content);
+                         saveByteArray("Mobile Document", docArray,contentdata[0].mimetype,contentdata[0].docname);
+
+                    },
+                    error: function (results) {
+                       // alert("error");
+                    },
+
+                })
+
+                //var pdfAsDataUri = "data:application/pdf;base64," + byteArray;
+                //window.open(pdfAsDataUri);
+
+            });
+
+            $(".subheader").html("My Documents");
+            var $table = $("#document-display");
+            var altclass = "";
+            var documentName = "";
+            //var jsondata = JSON.stringify({ userid: 5 });
+            var jsondata = JSON.stringify({ userid: userid });
+            $.ajax({
+                url: "ManageData.asmx/GetServiceMyDocuments",
+                data: jsondata,
+                type: "POST",
+                contentType: "application/json;charset=utf-8",
+                dataType: "json",
+                success: function (data) {
+
+                    var res = JSON.parse(data.d);
+                    var str = "";
+                    $.each(res, function (key, val) {
+                        var documentTitle = res[key].title;
+
+                        //if (key % 2 === 0) {
+                        //    altclass = 'rowsel';
+                        //}
+                        //else
+                        //    altclass = 'altrow';
+
+                        $table.append("<div  class='row btn btn-primary doc opendocument' data-docid="+val.id+">" +
+                            "<div class='" + altclass + " col-md-6 col-sm-6 col-xs-11'>&nbsp;" + val.docname + "</div>" +
+                            //"<div class='" + altclass + " col-md-2 hidden-sm hidden-xs'>" + val.docsize + "</div>" +
+                            "<div class='" + altclass + " col-md-4 hidden-sm hidden-xs'>" + val.creationdate + "</div>" +
+                            "<div class='" + altclass + " col-md-1 hidden-sm hidden-xs'>&nbsp;" + val.createdby + "</div>" +
+                            "<div class='" + altclass + " col-md-1 hidden-sm hidden-xs'>&nbsp;" + val.categoryid + "</div>" +
+                            //"<div  class='" + altclass + " col-md-2 hidden-sm hidden-xs'>" +
+                            //"<span ><i class='glyphicon glyphicon-share'></i></span></div>" +
+                            //"<div  class='" + altclass + " col-md-2 hidden-sm hidden-xs'>" +
+                            //"<a href='EditDocument.html' class='doc_edit'><i class='glyphicon glyphicon-pencil'></i></a></div>" +
+                            "</div>");
+
+
+                        //$table.append("<div class=\"panel-group\" id=\"accordion\" role=\"tablist\" aria-multiselectable=\"true\">"+
+                        //    "<div class=\"panel panel-default\"><div class=\"panel-heading\" role=\"tab\" id=\"headingOne\">"+
+                        //    "<h4 class=\"panel-title\"><a role=\"button\" data-toggle=\"collapse\" data-parent=\"#accordion\" href=\"#collapseOne\""+
+                        //    " aria-expanded=\"true\" aria-controls=\"collapseOne\">" + agendaTitle + "</a></h4></div>" +
+
+                        //    "<div id=\"collapseOne\" class=\"panel-collapse collapse in\" role=\"tabpanel\" aria-labelledby=\"headingOne\">"+
+                        //    "<div class=\"panel-body\"><strong>Meeting Details:</strong>" + agendaDetails + "</div>" +
+                        //    "<div class='col-md-12'><div class='col-md-6'><strong>Start Date:</strong>" + agendaStart + "</div><div class='col-md-6'><strong>Expire Date:</strong>" + agendaEnd + "</div></div>" +
+                        //    "<div class='col-md-12'>" + listofdocs + "</div>" +
+                        //    "</div>" +
+                        //    ""+
+                        //    "</div></div>");
+
+
+                    });
+                    if (res.length == 0) {
+                        $table.append("<div  class='row btn btn-primary doc opendocument'>" +
+                            "You have no documents available!</div>");
+                    }
+
+                },
+                error: function (data) {
+                    alert("failed")
+                }
+            });
+
+        });
+
+
+
+    </script>
+
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="navigator-mobile">
+                <div class="menuheader"></div>
+            </div>
+        </div>
+        <div class="row topmargin-mobile">
+            <div class="createmeetingborder">
+                <div id="userwelcome"></div>
+                <!--<div id="logout"></div>-->
+                <!--<div class="row">
+                    <div class="form-group">
+                        <div class="col-md-12">
+                            <div>
+                                <img class="img-responsive" src="Content/Images/MCU-logo-blue3.jpg" alt="MCU Logo" />
+                            </div>
+                        </div>
+                    </div>
+                </div>-->
+                <div class="table-hedge" id="portalmtg">
+                    <div class="row">
+                        <!--<div class="subheader">My Documents</div>-->
+                        <!--<div class="table-header">
+                            <div class="table-col-hdr col-md-12 col-sm-12 ">My Documents</div>
+                        </div>-->
+                    </div>
+                    <div class="row">
+                        <div id="document-display"></div>
+                    </div>
+                </div>
+                <div id="pagefooter"></div>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+</html>

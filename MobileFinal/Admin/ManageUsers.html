@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Manage Users</title>
+    <meta charset="utf-8" />
+    <link href="../Content/Site.css" rel="stylesheet" />
+    <link href="../Content/bootstrap.css" rel="stylesheet" />
+
+    <script src="../Scripts/jquery-1.12.4.min.js"></script>
+
+    <script>
+        $(function () {
+            var $table = $("#row-display");
+            var altclass = "";
+
+            $.ajax({
+                url: "../ManageData.asmx/GetUsers",
+                type: "POST",
+                contentType: "application/json;charset=utf-8",
+                dataType: "json",
+                success: function (data) {
+                    var str = "";
+
+                    $.each(JSON.parse(data.d), function (key, val) {
+                        if (key % 2 === 0) {
+                            altclass = 'rowsel';
+                        }
+                        else
+                            altclass = 'altrow';
+
+                        if (val.isactive)
+                            str = "De-activate";
+                        else
+                            str = "Activate";
+
+                        $table.append("<div class='row btn btn-primary'>" +
+                            "<div class='" + altclass + " col-md-8 col-sm-10 col-xs-6'>" + val.firstname +" "+val.lastname+ "</div>" +
+                            "<div class='" + altclass + " col-md-2 col-sm-4 col-xs-2 hidden-sm hidden-xs'><a href='#' class='c_active'>" + str + "</a></div>" +
+                            //"<div class='" + altclass + " col-md-2 col-sm-2 col-xs-6'>[<a href='EditRole.aspx?id=" + val.userid + "' class='c_edit'>Edit</a>]</div>" +
+                            "<div  class='" + altclass + " col-md-2 hidden-sm hidden-xs'>" +
+                            "<a href='EditRole.html' class='doc_edit'><i class='glyphicon glyphicon-pencil'></i></a></div>" +
+
+                            "</div>");
+                    });
+
+                },
+                error: function (data) {
+                    alert("failed")
+                }
+            });
+
+
+        });
+
+
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <div class="row">
+            <div class="loginborder">
+                <div class="header-sect">Welcome to the Executive Meeting Portal</div>
+
+                <div class="row">
+                    <div id="row-display" class="scrollist"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
